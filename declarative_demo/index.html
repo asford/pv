@@ -70,31 +70,6 @@
         </ul>
       </li>
       <li class="has-dropdown">
-        <a href="#">Style</a>
-        <ul class="dropdown">
-          <li><a id=style-cartoon href="#">Cartoon</a></li>
-          <li><a id=style-tube href="#">Tube</a></li>
-          <li><a id=style-trace href="#">Trace</a></li>
-          <li><a id=style-line-trace href="#">Line Trace</a></li>
-          <li><a id=style-sline href="#">Smooth Line Trace</a></li>
-          <li><a id=style-lines href="#">Bonds (Lines)</a></li>
-          <li><a id=style-spheres href="#">Spheres</a></li>
-          <li><a id=style-balls-and-sticks href="#">Balls And Sticks</a></li>
-          <li><a id=style-points href="#">Points</a></li>
-        </ul>
-      </li>
-      <li class="has-dropdown">
-        <a href="#">Color</a>
-        <ul class="dropdown">
-          <li><a id=color-uniform href="#">Uniform</a></li>
-          <li><a id=color-chain href="#">Chain</a></li>
-          <li><a id=color-element href="#">Element</a></li>
-          <li><a id=color-ss href="#">Secondary Structure</a></li>
-          <li><a id=color-ss-succ href="#">Secondary Structure Succession</a></li>
-          <li><a id=color-rainbow href="#">Rainbow</a></li>
-        </ul>
-      </li>
-      <li class="has-dropdown">
         <a href="#">Shading</a>
         <ul class="dropdown">
           <li><a id=phong href="#">Phong</a></li>
@@ -107,25 +82,54 @@
 
 
 <div id="main" class="row collapse">
-  <div id="panel" class="small-4 columns">
+  <div id="panel" class="small-3 columns">
     <ul class="tabs" data-tab role="tablist">
       <li class="tab-title active" role="presentational">
-        <a href="#panel-object" role="tab" tabindex="0" aria-selected="true" controls="panel-object">Object</a>
+        <a href="#panel-views" role="tab" tabindex="0" aria-selected="true" controls="panel-views">Views</a>
+      </li>
+      <li class="tab-title" role="presentational">
+        <a href="#panel-object" role="tab" tabindex="0" aria-selected="false" controls="panel-object">Object</a>
       </li>
       <li class="tab-title" role="presentational">
         <a href="#panel-pdb" role="tab" tabindex="0" aria-selected="false" controls="panel-pdb">PDB</a>
       </li>
     </ul>
     <div class="tabs-content">
-      <section role="tabpanel" aria-hidden="false" class="content active" id="panel-object">
-      </section>
-      <section role="tabpanel" aria-hidden="true" class="content" id="panel-pdb">
-      </section>
+      <section role="tabpanel" aria-hidden="false" class="content active" id="panel-views">
+          <script type="text/template" id="panel-views-template">
+              <% _.each(views, function( view_spec, index ) { %>
+                <tr view_index=<%- index %>>
+                <td> <%- view_spec.selection %> </td><td> <%- view_spec.mode %> </td>
+                <td width="10em"> <a href="#" class="button tiny delete">X</a></td>
+                </tr>
+              <% } ); %>
+          </script>
+          <table width="100%">
+            <thead>
+              <th>Selector</th><th>Mode</th><th width="10em">Remove</th>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+          <form>
+            <div class="row">
+              <div class="small-6 columns">
+                <input class="selector" type="text" placeholder="Selector"></input>
+              </div>
+              <div class="small-6 columns">
+                <input class="mode" type="text" placeholder="Mode"></input>
+              </div>
+            </div>
+            <a href="#" class="button expand add">Add</a>
+          </form>
+          </section>
+      <section role="tabpanel" aria-hidden="true" class="content" id="panel-object"> </section>
+      <section role="tabpanel" aria-hidden="true" class="content" id="panel-pdb"> </section>
     </div>
   </div>
-  <div id="viewer" class="small-8 columns" >
+  <div id="viewer" class="small-9 columns" >
   </div>
-</div>
-    </body>
+  </div>
+</body>
 </html>
 

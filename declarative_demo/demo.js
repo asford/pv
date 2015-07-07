@@ -14,14 +14,11 @@ requirejs.config({
 // on purpose outside of the require block, so we can inspect the viewer object 
 // from the JavaScript console.
 var viewer;
-var structure;
-var structure_doc;
+var controller;
 
-var doc_to_json;
-var node_to_json;
+var DeclarativeController;
 
-var jsel_schema;
-var add_to_view;
+var add_view;
 
 var pv;
 require(['pv', 'mol/mol', 'mol/chain', 'mol/residue', 'mol/atom', "js/jsel.js"], function(PV, mol, chain, residue, atom, _jsel) {
@@ -31,13 +28,68 @@ var io = pv.io;
 var viewpoint = pv.viewpoint;
 var color = pv.color;
 
+DeclarativeController = function( viewer ) {
+  this.viewer = viewer;
+
+  this.model = null; 
+  this.model_doc =  null;
+
+  this.views = []
+}
+
 var jsel_properties = {
   chain : ["name"],
   residue : ["index",  "insCode",  "isAminoacid",  "isNucleotide",  "name",  "num",  "ss"],
   atom : ["element",  "index",  "isHetatm",  "name",  "occupancy",  "tempFactor", "pos"]
 }
 
-jsel_schema = {
+DeclarativeController.prototype = {
+
+  set_model : function(model) {
+    this.model = model;
+    this.model_doc = jsel(model).schema(this.model_schema);
+
+    this.setup_views();
+
+    return this;
+  },
+
+  add_view : function(selection, mode) {
+
+    var view_spec = { selection : selection, mode : mode };
+    this.views.push( view_spec );
+
+    this.setup_views();
+
+    return this;
+  },
+
+  remove_view : function(view_index) {
+
+    this.views.splice( view_index, 1);
+
+    this.setup_views();
+
+    return this;
+  },
+
+  setup_views : function() {
+    this.viewer.clear();
+
+    if(! this.model ) { return; }
+
+    for(v = 0; v < this.views.length; v++) {
+      var model_view = add_to_view(
+          this.model.createEmptyView(),
+          this.model_doc.selectAll( this.views[v].selection));
+
+      this.viewer.renderAs( "model." + this.views[v].mode, model_view, this.views[v].mode );
+    }
+    
+    this.viewer.autoZoom();
+  },
+
+  model_schema : {
     /*@param {*} node A node from your data
     * @returns {string} The element name of the node
     */
@@ -118,6 +170,7 @@ jsel_schema = {
     nodeValue: function(node) {
       return null
     },
+  },
 }
 
 function get_chain_view(mol_view, target_chain) {
@@ -143,65 +196,64 @@ function get_residue_view(chain_view, target_residue) {
 
   return null;
 }
+function add_to_view(view, obj) {
+    if ( obj instanceof Array){
+      _.reduce(obj, add_to_view, view);
+    }
+    if ( obj instanceof mol.Mol || obj instanceof mol.MolView ) {
+      if (! view._mol === obj ){
+        console.log("Mismatch adding Mol to MolView.", view, obj);
+        return view;
+      }
 
-add_to_view = function(view, obj) {
-  if ( obj instanceof Array){
-    _.reduce(obj, add_to_view, view);
+      obj.chains().forEach(function(c) { view.addChain(c, true) ;} );
+    }
+    else if ( obj instanceof chain.Chain || obj instanceof chain.ChainView ) {
+      if (! view._mol === obj._structure ){
+        console.log("Mol mismatch adding Chain to MolView.", view, obj);
+        return view;
+      }
+
+      var chain_view = get_chain_view(view, obj);
+      if( ! chain_view ){
+        view.addChain(obj, true);
+      }
+    }
+    else if ( obj instanceof residue.Residue || obj instanceof residue.ResidueView ) {
+      if (! view._mol === obj._chain._structure ){
+        console.log("Mol mismatch adding Residue to MolView.", view, obj);
+        return view;
+      }
+
+      var chain_view = get_chain_view(view, obj._chain);
+      if( ! chain_view ){
+        chain_view = view.addChain(obj._chain, false);
+      }
+
+      chain_view.addResidue( obj, true);
+    }
+    else if ( obj instanceof atom.Atom || obj instanceof atom.AtomView ) {
+      if (! view._mol === obj._residue._chain._structure ){
+        console.log("Mol mismatch adding Atom to MolView.", view, obj);
+        return view;
+      }
+
+      var chain_view = get_chain_view(view, obj._residue._chain);
+      if( ! chain_view ){
+        chain_view = view.addChain(obj._residue._chain, false);
+      }
+
+      var residue_view = get_residue_view(chain_view, obj._residue);
+      if( ! residue_view ){
+        residue_view = chain_view.addResidue(obj._residue, false);
+      }
+
+      residue_view.addAtom( obj );
+    }
+    return view;
   }
-  if ( obj instanceof mol.Mol || obj instanceof mol.MolView ) {
-    if (! view._mol === obj ){
-      console.log("Mismatch adding Mol to MolView.", view, obj);
-      return view;
-    }
 
-    obj.chains().forEach(function(c) { view.addChain(c, true) ;} );
-  }
-  else if ( obj instanceof chain.Chain || obj instanceof chain.ChainView ) {
-    if (! view._mol === obj._structure ){
-      console.log("Mol mismatch adding Chain to MolView.", view, obj);
-      return view;
-    }
-
-    var chain_view = get_chain_view(view, obj);
-    if( ! chain_view ){
-      view.addChain(obj, true);
-    }
-  }
-  else if ( obj instanceof residue.Residue || obj instanceof residue.ResidueView ) {
-    if (! view._mol === obj._chain._structure ){
-      console.log("Mol mismatch adding Residue to MolView.", view, obj);
-      return view;
-    }
-
-    var chain_view = get_chain_view(view, obj._chain);
-    if( ! chain_view ){
-      chain_view = view.addChain(obj._chain, false);
-    }
-
-    chain_view.addResidue( obj, true);
-  }
-  else if ( obj instanceof atom.Atom || obj instanceof atom.AtomView ) {
-    if (! view._mol === obj._residue._chain._structure ){
-      console.log("Mol mismatch adding Atom to MolView.", view, obj);
-      return view;
-    }
-
-    var chain_view = get_chain_view(view, obj._residue._chain);
-    if( ! chain_view ){
-      chain_view = view.addChain(obj._residue._chain, false);
-    }
-
-    var residue_view = get_residue_view(chain_view, obj._residue);
-    if( ! residue_view ){
-      residue_view = chain_view.addResidue(obj._residue, false);
-    }
-
-    residue_view.addAtom( obj );
-  }
-  return view;
-}
-
-node_to_json = function( node ) {
+function node_to_json( node ) {
   var obj = {};
 
   var child_groups = _.mapObject(
@@ -213,100 +265,40 @@ node_to_json = function( node ) {
   var attrs = node.attributes() ? node.attributes().values : {};
 
   return _.extend(obj, child_groups, attrs); 
+};
+
+function doc_to_json( doc ) {
+    if( ! doc.cache ){
+      doc.selectAll("//*");
+    }
+
+    return node_to_json(doc);
+};
+
+
+function update_view_display( ){
+  var view_template = _.template( $("#panel-views-template").html() );
+  var view_html = view_template( { views : controller.views } );
+  $("#panel-views tbody")[0].innerHTML = view_html;
 }
 
-doc_to_json = function(doc) {
-  if( ! doc.cache ){
-    doc.selectAll("//*");
-  }
+function add_view(selector, mode) {
+  controller.add_view(selector, mode);
+  update_view_display();
+};
 
-  return node_to_json(doc);
-}
-
-function points() {
-  viewer.clear();
-  var go = viewer.points('structure', structure, {
-                         color: color.byResidueProp('num'),
-                         showRelated : '1' });
-  go.setSelection(structure.select({ rnumRange : [15,20] }));
-}
-
-function lines() {
-  viewer.clear();
-  var go = viewer.lines('structure', structure, {
-              color: color.byResidueProp('num'),
-              showRelated : '1' });
-  go.setSelection(structure.select({ rnumRange : [15,20] }));
-}
-
-function cartoon() {
-  viewer.clear();
-  var go = viewer.cartoon('structure', structure, {
-      color : color.ssSuccession(), showRelated : '1',
-  });
-  go.setSelection(structure.select({ rnumRange : [15,20] }));
-  
-  var rotation = viewpoint.principalAxes(go);
-  viewer.setRotation(rotation)
-}
-
-function lineTrace() {
-  viewer.clear();
-  var go = viewer.lineTrace('structure', structure, { showRelated : '1' });
-  go.setSelection(structure.select({ rnumRange : [15,20] }));
-}
-
-function spheres() {
-  viewer.clear();
-  var go = viewer.spheres('structure', structure, { showRelated : '1' });
-  go.setSelection(structure.select({ rnumRange : [15,20] }));
-}
-
-function sline() {
-  viewer.clear();
-  var go = viewer.sline('structure', structure,
-          { color : color.uniform('red'), showRelated : '1'});
-  go.setSelection(structure.select({ rnumRange : [15,20] }));
-}
-
-function tube() {
-  viewer.clear();
-  var go = viewer.tube('structure', structure);
-  viewer.lines('structure.ca', structure.select({aname :'CA'}),
-            { color: color.uniform('blue'), lineWidth : 1,
-              showRelated : '1' });
-  go.setSelection(structure.select({ rnumRange : [15,20] }));
-}
-
-function trace() {
-  viewer.clear();
-  var go = viewer.trace('structure', structure, { showRelated : '1' });
-  go.setSelection(structure.select({ rnumRange : [15,20] }));
-
-}
-function ballsAndSticks() {
-  viewer.clear();
-  var go = viewer.ballsAndSticks('structure', structure, { showRelated : '1' });
-  go.setSelection(structure.select({ rnumRange : [15,20] }));
-}
-
-function preset() {
-  viewer.clear();
-  var ligand = structure.select({'rnames' : ['SAH', 'RVP']});
-  viewer.ballsAndSticks('structure.ligand', ligand, {
-  });
-  viewer.cartoon('structure.protein', structure, { boundingSpheres: false });
-}
+function remove_view(view_index) {
+  controller.remove_view(view_index);
+  update_view_display();
+};
 
 function load(pdb_id) {
   $.ajax({ url : 'pdbs/'+pdb_id+'.pdb', success : function(data) {
     $("#panel-pdb")[0].innerHTML = "<pre><code>" + data + "<code></pre>";
     structure = io.pdb(data);
-    structure_doc = jsel(structure).schema(jsel_schema);
-    $("#panel-object")[0].innerHTML = "<pre><code>" + JSON.stringify(doc_to_json(structure_doc), null, 2) + "<code></pre>";
-    //mol.assignHelixSheet(structure);
-    cartoon();
-    viewer.autoZoom();
+    controller.set_model( structure );
+
+    $("#panel-object")[0].innerHTML = "<pre><code>" + JSON.stringify(doc_to_json( controller.model_doc ), null, 2) + "<code></pre>";
   }});
 }
 function kinase() {
@@ -333,46 +325,6 @@ function longHelices() {
 function ssSuccession() {
   viewer.forEach(function(go) {
     go.colorBy(color.ssSuccession());
-  });
-  viewer.requestRedraw();
-}
-
-function uniform() {
-  viewer.forEach(function(go) {
-    go.colorBy(color.uniform([0,1,0]));
-  });
-  viewer.requestRedraw();
-}
-function byElement() {
-  viewer.forEach(function(go) {
-    go.colorBy(color.byElement());
-  });
-  viewer.requestRedraw();
-}
-
-function ss() {
-  viewer.forEach(function(go) {
-    go.colorBy(color.bySS());
-  });
-  viewer.requestRedraw();
-}
-
-function proInRed() {
-  viewer.forEach(function(go) {
-    go.colorBy(color.uniform('red'), go.select({rname : 'PRO'}));
-  });
-  viewer.requestRedraw();
-}
-function rainbow() {
-  viewer.forEach(function(go) {
-    go.colorBy(color.rainbow());
-  });
-  viewer.requestRedraw();
-}
-
-function byChain() {
-  viewer.forEach(function(go) {
-    go.colorBy(color.byChain());
   });
   viewer.requestRedraw();
 }
@@ -407,16 +359,6 @@ function cross() {
   viewer.setZoom(20);
 }
 
-function ensemble() {
-  io.fetchPdb('/pdbs/1nmr.pdb', function(structures) {
-    viewer.clear()
-    structure = structures[i];
-    for (var i = 0; i < structures.length; ++i) {
-      go = viewer.cartoon('ensemble_'+ i, structures[i]);
-    }
-    viewer.autoZoom();
-  }, { loadAllModels : true } );
-}
 $(document).foundation();
 $('#1r6a').click(transferase);
 $('#1crn').click(crambin);
@@ -424,42 +366,19 @@ $('#1ake').click(kinase);
 $('#4ubb').click(polymerase);
 $('#4c46').click(longHelices);
 $('#2f8v').click(telethonin);
-$('#ensemble').click(ensemble);
-$('#style-cartoon').click(cartoon);
-$('#style-tube').click(tube);
-$('#style-line-trace').click(lineTrace);
-$('#style-sline').click(sline);
-$('#style-trace').click(trace);
-$('#style-lines').click(lines);
-$('#style-balls-and-sticks').click(ballsAndSticks);
-$('#style-points').click(points);
-$('#style-spheres').click(spheres);
-$('#color-uniform').click(uniform);
-$('#color-element').click(byElement);
-$('#color-chain').click(byChain);
-$('#color-ss-succ').click(ssSuccession);
-$('#color-ss').click(ss);
 $('#phong').click(phong);
 $('#hemilight').click(hemilight);
-$('#color-rainbow').click(rainbow);
-$('#load-from-pdb').change(function() {
-  var pdbId = this.value;
-  this.value = '';
-  this.blur();
-  var url = 'http://www.rcsb.org/pdb/files/' + pdbId + '.pdb';
-  console.log(url);
 
-  io.fetchPdb(url, function(s) {
-    structure = s;
-    cartoon();
-    viewer.autoZoom();
-  });
-});
 viewer = pv.Viewer(document.getElementById('viewer'), { 
     width : 'auto', height: 'auto', antialias : true, 
     outline : true, quality : 'medium', style : 'hemilight',
     background : '#fff', animateTime: 500, doubleClick : null
 });
+
+controller = new DeclarativeController(viewer);
+add_view("/structure", "cartoon");
+
+
 viewer.addListener('viewerReady', crambin);
 
 viewer.on('doubleClick', function(picked) {
@@ -478,8 +397,24 @@ viewer.addListener('click', function(picked) {
                 picked.node().name());
   }
 });
+
 window.addEventListener('resize', function() {
       viewer.fitParent();
+});
+
+$("#panel-views").on("click", ".button.add", function() {
+  var selector_form = $("#panel-views form .selector")[0];
+  var mode_form = $("#panel-views form .mode")[0];
+
+  add_view(selector_form.value, mode_form.value);
+
+  selector_form.value = "";
+  mode_form.value = "";
+});
+
+$("#panel-views table").on("click", ".button.delete", function() {
+  var target_index = $(this).parents("tr")[0].getAttribute("view_index");
+  remove_view(target_index);
 });
 
 });
