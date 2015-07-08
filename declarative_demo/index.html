@@ -32,6 +32,10 @@
         padding:0px;
         overflow:hidden;
       }
+      #panel-views .button.delete {
+        margin : 0px auto;
+        display : block;
+      }
     </style>
     </head>
     <body>
@@ -96,28 +100,45 @@
     </ul>
     <div class="tabs-content">
       <section role="tabpanel" aria-hidden="false" class="content active" id="panel-views">
-          <script type="text/template" id="panel-views-template">
-              <% _.each(views, function( view_spec, index ) { %>
-                <tr view_index=<%- index %>>
-                <td> <%- view_spec.selection %> </td><td> <%- view_spec.mode %> </td>
-                <td width="10em"> <a href="#" class="button tiny delete">X</a></td>
-                </tr>
-              <% } ); %>
-          </script>
           <table width="100%">
             <thead>
               <th>Selector</th><th>Mode</th><th width="10em">Remove</th>
             </thead>
+          <script type="text/template" id="panel-views-template">
+              <% _.each(views, function( view_spec, index ) { %>
+                <tr view_index=<%- index %>>
+                <td> <%- view_spec.selection %> </td><td> <%- view_spec.mode %> </td>
+                  <td width="10em"> <a href="#" class="button tiny alert delete">X</a></td>
+                </tr>
+              <% } ); %>
+          </script>
             <tbody>
             </tbody>
           </table>
-          <form>
+          <form name="view_input" >
             <div class="row">
-              <div class="small-6 columns">
-                <input class="selector" type="text" placeholder="Selector"></input>
+              <div class="large-12 columns">
+                <label>Selector
+                <input name="selector" type="text" placeholder="Selector"></input>
+                </label>
               </div>
-              <div class="small-6 columns">
-                <input class="mode" type="text" placeholder="Mode"></input>
+            </div>
+            <div class="row">
+              <div class="large-12 columns">
+                <label>Mode
+                <select name="mode">
+                  <option value=>
+                  <option value="cartoon">Cartoon</option>
+                  <option value="spheres">Spheres</option>
+                  <option value="lines">Lines</option>
+                  <option value="ballsAndSticks">Balls and Sticks</option>
+                  <option value="points">Points</option>
+                  <option value="tube">Tube</option>
+                  <option value="trace">Trace</option>
+                  <option value="sline">Smooth Line Trace</option>
+                  <option value="lineTrace">Line Trace</option>
+                </select>
+                </label>
               </div>
             </div>
             <a href="#" class="button expand add">Add</a>

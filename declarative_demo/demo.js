@@ -403,13 +403,12 @@ window.addEventListener('resize', function() {
 });
 
 $("#panel-views").on("click", ".button.add", function() {
-  var selector_form = $("#panel-views form .selector")[0];
-  var mode_form = $("#panel-views form .mode")[0];
+  var form = $("#panel-views form");
 
-  add_view(selector_form.value, mode_form.value);
+  var result = form.serializeArray().reduce(function(m,o){ m[o.name] = o.value; return m;}, {});
+  add_view(result.selector, result.mode);
 
-  selector_form.value = "";
-  mode_form.value = "";
+  form[0].reset();
 });
 
 $("#panel-views table").on("click", ".button.delete", function() {
