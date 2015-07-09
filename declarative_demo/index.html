@@ -64,13 +64,12 @@
     <ul class="right">
       <li class="has-dropdown">
         <a href="#">Load</a>
-        <ul class="dropdown">
-          <li><a id=1r6a href="#">Methyl Transferase</a></li>
-          <li><a id=4c46 href="#">Long Helices</a></li>
-          <li><a id=2f8v href="#">Telethonin</a></li>
-          <li><a id=1ake href="#">Adenylate Kinase</a></li>
-          <li><a id=4ubb href="#">DNA Polymerase</a></li>
-          <li><a id=ensemble href="#">NMR ensemble</a></li>
+        <script type="text/template" id="load_dropdown_template">
+            <% _.each(targets, function( target, index ) { %>
+              <li><a pdb_id=<%- target.pdb_id %> href="#"><%- target.description %></a></li>
+            <% } ); %>
+        </script>
+        <ul id="load_dropdown" class="dropdown">
         </ul>
       </li>
       <li class="has-dropdown">
@@ -102,24 +101,24 @@
       <section role="tabpanel" aria-hidden="false" class="content active" id="panel-views">
           <table width="100%">
             <thead>
-              <th>Selector</th><th>Mode</th><th width="10em">Remove</th>
+              <th>View</th><th width="10em">Remove</th>
             </thead>
-          <script type="text/template" id="panel-views-template">
-              <% _.each(views, function( view_spec, index ) { %>
-                <tr view_index=<%- index %>>
-                <td> <%- view_spec.selection %> </td><td> <%- view_spec.mode %> </td>
+            <script type="text/template" id="panel-views-template">
+                <% _.each(views, function( view_spec, index ) { %>
+                  <tr view_index=<%- index %>>
+                  <td><pre><%- JSON.stringify(view_spec, null, 2) %></pre></td>
                   <td width="10em"> <a href="#" class="button tiny alert delete">X</a></td>
-                </tr>
-              <% } ); %>
-          </script>
+                  </tr>
+                <% } ); %>
+            </script>
             <tbody>
             </tbody>
           </table>
           <form name="view_input" >
             <div class="row">
               <div class="large-12 columns">
-                <label>Selector
-                <input name="selector" type="text" placeholder="Selector"></input>
+                <label>Selection
+                <input name="selection" type="text" placeholder="Selection"></input>
                 </label>
               </div>
             </div>
@@ -138,6 +137,21 @@
                   <option value="sline">Smooth Line Trace</option>
                   <option value="lineTrace">Line Trace</option>
                 </select>
+                </label>
+              </div>
+            </div>
+            <div class="row">
+              <div class="large-12 columns">
+                <label>Color
+                <input name="color" type="text" placeholder="Color" list="color_options"></input>
+                <script type="text/template" id="color_options_template">
+                    <% _.each(color_options, function( value, index ) { %>
+                      <option value="<%- value %>" />
+                    <% } ); %>
+                </script>
+                
+                <datalist id="color_options">
+                </datalist>
                 </label>
               </div>
             </div>

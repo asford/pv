@@ -54,9 +54,12 @@ DeclarativeController.prototype = {
     return this;
   },
 
-  add_view : function(selection, mode) {
+  validate_view : function(view_spec) {
+    return;
+  },
 
-    var view_spec = { selection : selection, mode : mode };
+  add_view : function(view_spec) {
+    this.validate_view(view_spec);
     this.views.push( view_spec );
 
     this.setup_views();
@@ -79,14 +82,48 @@ DeclarativeController.prototype = {
     if(! this.model ) { return; }
 
     for(v = 0; v < this.views.length; v++) {
+      var color_options = this.color_options;
+
+      var view_spec = this.views[v];
+
       var model_view = add_to_view(
           this.model.createEmptyView(),
-          this.model_doc.selectAll( this.views[v].selection));
+          this.model_doc.selectAll( view_spec.selection));
 
-      this.viewer.renderAs( "model." + this.views[v].mode, model_view, this.views[v].mode );
+      this.viewer.renderAs(
+          "model." + view_spec.mode,
+          model_view,
+          view_spec.mode,
+          this.build_view_options( view_spec ));
     }
     
     this.viewer.autoZoom();
+  },
+
+  color_options : {
+    "by_chain" : pv.color.byChain,
+    "by_element" : pv.color.byElement,
+    "by_ss" : pv.color.bySS,
+    "rainbow" : pv.color.rainbow,
+    "chainbow" : pv.color.ssSuccession
+  },
+
+  build_view_options : function( view_spec ) {
+    var options = {};
+
+    if (_.has(view_spec, "color")) {
+      if (_.has(this.color_options, view_spec.color)) {
+        options["color"] = this.color_options[view_spec.color]();
+      }
+      else if( _.isString(view_spec.color)) {
+        options["color"] = pv.color.uniform(view_spec.color);
+      }
+      else {
+        throw { name : "InvalidView", message : "Invalid view property: 'color'", view_spec : view_spec }
+      }
+    }
+
+    return options;
   },
 
   model_schema : {
@@ -156,7 +193,7 @@ DeclarativeController.prototype = {
           result[ select_attributes[i] ] = node["_" + select_attributes[i]];
         }
 
-        return result;
+        return _.pick(result, function(value) { return _.isNumber(value) || value != false })
       }
       else
       {
@@ -282,8 +319,8 @@ function update_view_display( ){
   $("#panel-views tbody")[0].innerHTML = view_html;
 }
 
-function add_view(selector, mode) {
-  controller.add_view(selector, mode);
+function add_view(view_spec) {
+  controller.add_view(view_spec);
   update_view_display();
 };
 
@@ -301,26 +338,6 @@ function load(pdb_id) {
     $("#panel-object")[0].innerHTML = "<pre><code>" + JSON.stringify(doc_to_json( controller.model_doc ), null, 2) + "<code></pre>";
   }});
 }
-function kinase() {
-  load('1ake');
-}
-
-function crambin() {
-  load('1crn');
-}
-
-function transferase() {
-  load('1r6a');
-}
-
-function telethonin() { load('2f8v'); }
-
-function porin() {
-  load('2por');
-}
-function longHelices() {
-  load('4C46');
-}
 
 function ssSuccession() {
   viewer.forEach(function(go) {
@@ -328,11 +345,6 @@ function ssSuccession() {
   });
   viewer.requestRedraw();
 }
-
-function polymerase() {
-  load('4UBB');
-};
-
 
 function phong() {
   viewer.options('style', 'phong');
@@ -344,31 +356,52 @@ function hemilight() {
   viewer.requestRedraw();
 }
 
-
-function cross() {
-  viewer.clear();
-  var go = viewer.customMesh('custom');
-
-  go.addSphere([-10, 0, 0], 2, { userData : 'one' } );
-  go.addSphere([10, 0, 0], 2, { userData : 'two' } );
-  go.addSphere([0, -10, 0], 2, { userData : 'three' } );
-  go.addSphere([0, 10, 0], 2, { userData : 'four' } );
-  go.addSphere([0, 0, -10], 2, { userData : 'five' } );
-  go.addSphere([0, 0, 10], 2, { userData : 'six' } );
-  viewer.setCenter([0,0,0], 2, { userData : 'seven' } );
-  viewer.setZoom(20);
-}
+var targets = [
+  { pdb_id : "1qys", description : "Top 7" },
+  { pdb_id : "1crn", description : "Crambin" },
+  { pdb_id : "1ake", description : "Adenylate Kinase" },
+  { pdb_id : "1r6a", description : "Methyl Transferase" },
+  { pdb_id : "4c46", description : "Long Helices" },
+  { pdb_id : "2f8v", description : "Telethonin" },
+  { pdb_id : "4ubb", description : "DNA Polymerase" },
+]
 
 $(document).foundation();
-$('#1r6a').click(transferase);
-$('#1crn').click(crambin);
-$('#1ake').click(kinase);
-$('#4ubb').click(polymerase);
-$('#4c46').click(longHelices);
-$('#2f8v').click(telethonin);
+
+// Setup load menu
+var load_dropdown_template = _.template( $("#load_dropdown_template").html() );
+$("#load_dropdown")[0].innerHTML = load_dropdown_template( { targets : targets });
+
+$('#load_dropdown').on("click", "a", function() {
+  load( this.getAttribute("pdb_id") );
+});
+
 $('#phong').click(phong);
 $('#hemilight').click(hemilight);
 
+// View panel form handlers.
+var color_options_template = _.template( $("#color_options_template").html() );
+$("#color_options")[0].innerHTML = color_options_template( { color_options : _.keys(DeclarativeController.prototype.color_options) });
+
+$("#panel-views").on("click", ".button.add", function() {
+  var form = $("#panel-views form");
+
+  var result = form.serializeArray().reduce(function(m,o){ m[o.name] = o.value; return m;}, {});
+
+  // Remove non-truthy values
+  result = _.pick(result, _.identity);
+
+  add_view(result);
+
+  form[0].reset();
+});
+
+$("#panel-views table").on("click", ".button.delete", function() {
+  var target_index = $(this).parents("tr")[0].getAttribute("view_index");
+  remove_view(target_index);
+});
+
+// Global component initialization
 viewer = pv.Viewer(document.getElementById('viewer'), { 
     width : 'auto', height: 'auto', antialias : true, 
     outline : true, quality : 'medium', style : 'hemilight',
@@ -376,10 +409,11 @@ viewer = pv.Viewer(document.getElementById('viewer'), {
 });
 
 controller = new DeclarativeController(viewer);
-add_view("/structure", "cartoon");
+add_view({ selection: "/structure", mode: "cartoon"});
 
+viewer.addListener('viewerReady', function() { load(targets[0].pdb_id); } );
 
-viewer.addListener('viewerReady', crambin);
+// Viewer event handlers
 
 viewer.on('doubleClick', function(picked) {
   if (picked === null) {
@@ -393,27 +427,12 @@ viewer.addListener('click', function(picked) {
   if (picked === null) return;
   var target = picked.target();
   if (target.qualifiedName !== undefined) {
-    console.log('clicked atom', target.qualifiedName(), 'on object',
-                picked.node().name());
+    console.log("Clicked: ", picked);
   }
 });
 
 window.addEventListener('resize', function() {
       viewer.fitParent();
-});
-
-$("#panel-views").on("click", ".button.add", function() {
-  var form = $("#panel-views form");
-
-  var result = form.serializeArray().reduce(function(m,o){ m[o.name] = o.value; return m;}, {});
-  add_view(result.selector, result.mode);
-
-  form[0].reset();
-});
-
-$("#panel-views table").on("click", ".button.delete", function() {
-  var target_index = $(this).parents("tr")[0].getAttribute("view_index");
-  remove_view(target_index);
 });
 
 });
