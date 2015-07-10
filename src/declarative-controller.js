@@ -97,7 +97,7 @@ DeclarativeController.prototype = {
 
   set_model : function(model) {
     this.model = model;
-    this.model_doc = docmodel.MolDoc(model);
+    this.model_doc = docmodel.MolDoc(model, {includeExtended: true});
 
     this.setup_views();
 
