@@ -113,20 +113,20 @@ ModelSchema.prototype = {
   },
 };
 
-function MolDoc(mol, schema_options) {
+function molToDoc(mol, schema_options) {
 
   var schema = new ModelSchema(schema_options);
 
   return jsel.jsel(mol).schema(_.bindAll(schema, "nodeName", "nodeValue", "attributes", "childNodes"));
 };
 
-function nodeToJson( node ) {
+function nodeToObj( node ) {
   var obj = {};
 
   var child_groups = _.mapObject(
       _.groupBy( node.childNodes(), function(n) { return n.nodeName(); } ),
       function(nodes, name) {
-        return _.map(nodes, nodeToJson);
+        return _.map(nodes, nodeToObj);
       });
 
   var attrs = node.attributes() ? node.attributes().values : {};
@@ -134,18 +134,56 @@ function nodeToJson( node ) {
   return _.extend(obj, child_groups, attrs); 
 };
 
-function docToJson( doc ) {
+function docToObj( doc ) {
     if( ! doc.cache ){
       doc.selectAll("//*");
     }
 
-    return nodeToJson(doc);
+    return nodeToObj(doc);
+};
+
+function objToMol( obj ) {
+  if( _.has(obj, "structure") ) {
+    if (_.isArray(obj.structure)) {
+      return objToMol(obj.structure[0]);
+    } else {
+      return objToMol(obj.structure);
+    }
+  }
+
+  var structure = new mol.Mol();
+
+  for (var ci = 0; ci < obj.chain.length; ci++){
+    var chain_obj = obj.chain[ci];
+    var chain = structure.addChain( chain_obj.name );
+
+    _.extend(chain, _.omit(chain_obj, ModelSchema.prototype.core_properties.chain, ModelSchema.prototype.extended_properties.chain ));
+
+    for (var ri = 0; ri < chain_obj.residue.length; ri++) {
+      var res_obj = chain_obj.residue[ri];
+      var residue = chain.addResidue(res_obj.name, res_obj.number, res_obj.insCode);
+
+      _.extend(residue, _.omit(res_obj, ModelSchema.prototype.core_properties.residue, ModelSchema.prototype.extended_properties.residue ));
+
+      for (var ai = 0; ai < res_obj.atom.length; ai++) {
+        var atom_obj = res_obj.atom[ai];
+        var atom = residue.addAtom(
+          atom_obj.name, atom_obj.pos, atom_obj.element, atom_obj.isHetatm, atom_obj.occupancy, atom_obj.tempFactor
+        );
+
+        _.extend(atom, _.omit(atom_obj, ModelSchema.prototype.core_properties.atom, ModelSchema.prototype.extended_properties.atom ));
+      }
+    }
+  }
+
+  return structure;
 };
 
 return {
-  MolDoc : MolDoc,
-  docToJson : docToJson,
-  nodeToJson : nodeToJson,
+  ModelSchema: ModelSchema,
+  molToDoc : molToDoc,
+  docToObj : docToObj,
+  objToMol : objToMol,
 };
 
 });

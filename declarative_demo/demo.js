@@ -16,10 +16,12 @@ requirejs.config({
 var viewer;
 var controller;
 var pv;
+var jsel;
 
-require(['pv', 'mol/mol', 'mol/chain', 'mol/residue', 'mol/atom', "mol/docmodel", "declarative-controller"], function(PV, mol, chain, residue, atom, docmodel, dec_con) {
+require(['pv', "extern/jsel", 'mol/mol', 'mol/chain', 'mol/residue', 'mol/atom', "mol/docmodel", "declarative-controller"], function(PV, JSEL, mol, chain, residue, atom, docmodel, dec_con) {
 
 pv = PV;
+jsel = JSEL;
 var io = pv.io;
 var viewpoint = pv.viewpoint;
 var color = pv.color;
@@ -47,7 +49,7 @@ function load(pdb_id) {
     structure = io.pdb(data);
     controller.set_model( structure );
 
-    $("#panel-object")[0].innerHTML = "<pre><code>" + JSON.stringify(docmodel.docToJson( controller.model_doc ), null, 2) + "<code></pre>";
+    $("#panel-object")[0].innerHTML = "<pre><code>" + JSON.stringify(docmodel.docToObj( controller.model_doc ), null, 2) + "<code></pre>";
   }});
 }
 
@@ -114,7 +116,7 @@ viewer = pv.Viewer(document.getElementById('viewer'), {
 });
 
 controller = new DeclarativeController(viewer);
-add_view({ selection: "/structure", mode: "cartoon"});
+add_view({ selection: "//structure", mode: "cartoon"});
 
 viewer.addListener('viewerReady', function() { load(targets[0].pdb_id); } );
 
