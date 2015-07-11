@@ -1,19 +1,106 @@
+/* jshint maxlen: 130 */
 define(
-    ['extern/underscore', 'extern/jsel', 'mol/mol', 'mol/chain', 'mol/residue', 'mol/atom'],
+    [
+      'extern/underscore',
+      'extern/jsel',
+      'mol/mol',
+      'mol/chain',
+      'mol/residue',
+      'mol/atom'],
     function(_, jsel, mol, chain, residue, atom) {
 
-ModelSchema = function( schema_options ) {
+"use strict";
+
+function get_chain_view(mol_view, target_chain) {
+  var view_chains = mol_view.chains();
+
+  for (var c = 0, len = view_chains.length; c < len; c++) {
+    if (view_chains[c]._chain === target_chain) {
+      return view_chains[c];
+    }
+  }
+  
+  return null;
+}
+
+function get_residue_view(chain_view, target_residue) {
+  var view_residues = chain_view.residues();
+
+  for (var r = 0, len = view_residues.length; r < len; r++) {
+    if (view_residues[r]._residue === target_residue) {
+      return view_residues[r];
+    }
+  }
+
+  return null;
+}
+
+function add_to_view(view, obj) {
+  if ( obj instanceof Array){
+    _.reduce(obj, add_to_view, view);
+  }
+
+  var chain_view;
+  var residue_view;
+  if ( obj instanceof mol.Mol || obj instanceof mol.MolView ) {
+    if (view._mol !== obj ){
+      console.log("Mismatch adding Mol to MolView.", view, obj);
+      return view;
+    }
+
+    obj.chains().forEach(function(c) { view.addChain(c, true) ;} );
+  }
+  else if ( obj instanceof chain.Chain || obj instanceof chain.ChainView ) {
+    if (view._mol !== obj._structure ){
+      console.log("Mol mismatch adding Chain to MolView.", view, obj);
+      return view;
+    }
+
+    chain_view = get_chain_view(view, obj);
+    if( ! chain_view ){
+      view.addChain(obj, true);
+    }
+  }
+  else if ( obj instanceof residue.Residue || obj instanceof residue.ResidueView ) {
+    if ( view._mol !== obj._chain._structure ){
+      console.log("Mol mismatch adding Residue to MolView.", view, obj);
+      return view;
+    }
+
+    chain_view = get_chain_view(view, obj._chain);
+    if( ! chain_view ){
+      chain_view = view.addChain(obj._chain, false);
+    }
+
+    chain_view.addResidue( obj, true);
+  }
+  else if ( obj instanceof atom.Atom || obj instanceof atom.AtomView ) {
+    if ( view._mol !== obj._residue._chain._structure ){
+      console.log("Mol mismatch adding Atom to MolView.", view, obj);
+      return view;
+    }
+
+    chain_view = get_chain_view(view, obj._residue._chain);
+    if( ! chain_view ){
+      chain_view = view.addChain(obj._residue._chain, false);
+    }
+
+    residue_view = get_residue_view(chain_view, obj._residue);
+    if( ! residue_view ){
+      residue_view = chain_view.addResidue(obj._residue, false);
+    }
+
+    residue_view.addAtom( obj );
+  }
+  return view;
+}
+
+var ModelSchema = function( schema_options ) {
   this.includeCore = true;
   this.includeExtended = true;
 
-  if (schema_options)
-  {
-    console.log(schema_options);
-    for (var n in schema_options) {
-      this[n] = schema_options[n];
-    }
-  }
-}
+  _.extendOwn( this, _.pick(schema_options, "includeCore", "includeExtended") );
+};
 
 ModelSchema.prototype = {
 
@@ -73,11 +160,13 @@ ModelSchema.prototype = {
     var select_attributes = [];
 
     if ( this.includeCore ) {
-      this.core_properties[node_type].forEach(function(v) { select_attributes.push(v) } );
+      this.core_properties[node_type].forEach(
+        function(v) { select_attributes.push(v); } );
     }
 
     if ( this.includeExtended ) {
-      this.extended_properties[node_type].forEach(function(v) { select_attributes.push(v) } );
+      this.extended_properties[node_type].forEach(
+        function(v) { select_attributes.push(v); } );
     }
 
     if (select_attributes.length > 0){
@@ -86,7 +175,7 @@ ModelSchema.prototype = {
           _.map(select_attributes, function(a) { return _.result(node, a); }) );
 
         // Remove non-truthy non-numeric values
-      result = _.pick(result, function(value) { return _.isNumber(value) || value != false });
+      result = _.pick(result, function(value) { return _.isNumber(value) || value; });
       // Map float32 and float64 arrays into standard arrays
       result = _.mapObject(result, function(value) {
           if(value instanceof Float32Array || value instanceof Float64Array) {
@@ -108,31 +197,41 @@ ModelSchema.prototype = {
   /*@param {*} node A node from your data - you can use text() in the XPath expression to select this value
   * @returns {*} The value of the node
   */
-  nodeValue: function(node) {
-    return null
+  nodeValue: function() {
+    return null;
   },
 };
+
+function selectView(molDoc, mol, selection_xpath) {
+  var result = molDoc.selectAll( selection_xpath );
+  if(! _.isEmpty(result) ) {
+    return add_to_view(mol.createEmptyView(), result);
+  }
+}
 
 function molToDoc(mol, schema_options) {
 
   var schema = new ModelSchema(schema_options);
 
-  return jsel.jsel(mol).schema(_.bindAll(schema, "nodeName", "nodeValue", "attributes", "childNodes"));
-};
+  var mol_doc = jsel.jsel(mol).schema(_.bindAll(schema, "nodeName", "nodeValue", "attributes", "childNodes"));
+  mol_doc.selectView = _.partial(selectView, mol_doc, mol);
+
+  return mol_doc;
+}
 
 function nodeToObj( node ) {
   var obj = {};
 
   var child_groups = _.mapObject(
       _.groupBy( node.childNodes(), function(n) { return n.nodeName(); } ),
-      function(nodes, name) {
+      function(nodes) {
         return _.map(nodes, nodeToObj);
       });
 
   var attrs = node.attributes() ? node.attributes().values : {};
 
   return _.extend(obj, child_groups, attrs); 
-};
+}
 
 function docToObj( doc ) {
     if( ! doc.cache ){
@@ -140,7 +239,7 @@ function docToObj( doc ) {
     }
 
     return nodeToObj(doc);
-};
+}
 
 function objToMol( obj ) {
   if( _.has(obj, "structure") ) {
@@ -157,13 +256,19 @@ function objToMol( obj ) {
     var chain_obj = obj.chain[ci];
     var chain = structure.addChain( chain_obj.name );
 
-    _.extend(chain, _.omit(chain_obj, ModelSchema.prototype.core_properties.chain, ModelSchema.prototype.extended_properties.chain ));
+    _.extend(chain, 
+      _.omit(chain_obj,
+              ModelSchema.prototype.core_properties.chain,
+              ModelSchema.prototype.extended_properties.chain ));
 
     for (var ri = 0; ri < chain_obj.residue.length; ri++) {
       var res_obj = chain_obj.residue[ri];
       var residue = chain.addResidue(res_obj.name, res_obj.number, res_obj.insCode);
 
-      _.extend(residue, _.omit(res_obj, ModelSchema.prototype.core_properties.residue, ModelSchema.prototype.extended_properties.residue ));
+      _.extend(residue,
+        _.omit(res_obj,
+                ModelSchema.prototype.core_properties.residue,
+                ModelSchema.prototype.extended_properties.residue ));
 
       for (var ai = 0; ai < res_obj.atom.length; ai++) {
         var atom_obj = res_obj.atom[ai];
@@ -171,13 +276,16 @@ function objToMol( obj ) {
           atom_obj.name, atom_obj.pos, atom_obj.element, atom_obj.isHetatm, atom_obj.occupancy, atom_obj.tempFactor
         );
 
-        _.extend(atom, _.omit(atom_obj, ModelSchema.prototype.core_properties.atom, ModelSchema.prototype.extended_properties.atom ));
+        _.extend(atom,
+          _.omit(atom_obj,
+                  ModelSchema.prototype.core_properties.atom,
+                  ModelSchema.prototype.extended_properties.atom ));
       }
     }
   }
 
   return structure;
-};
+}
 
 return {
   ModelSchema: ModelSchema,

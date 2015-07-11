@@ -25,6 +25,7 @@ SOURCE_FILES = [
   'src/mol/atom.js',
   'src/mol/bond.js',
   'src/mol/chain.js',
+  'src/mol/docmodel.js',
   'src/mol/mol.js',
   'src/mol/residue.js',
   'src/mol/select.js',

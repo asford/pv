@@ -1,13 +1,11 @@
 
 requirejs.config({
-  'baseUrl' : 'src' ,
   // uncomment the following commented-out block to test the contatenated, 
   // minified PV version. Grunt needs to be run before for this to work.
-  /*
   paths : {
-    pv : '/js/bio-pv.min'
+    pv : '/js/bio-pv.min',
+    controller: '/controller'
   }
-  */
 });
 
 
@@ -16,16 +14,14 @@ requirejs.config({
 var viewer;
 var controller;
 var pv;
-var jsel;
 
-require(['pv', "extern/jsel", 'mol/mol', 'mol/chain', 'mol/residue', 'mol/atom', "mol/docmodel", "declarative-controller"], function(PV, JSEL, mol, chain, residue, atom, docmodel, dec_con) {
+require(['pv', "controller"], function(PV, controller) {
 
 pv = PV;
-jsel = JSEL;
 var io = pv.io;
 var viewpoint = pv.viewpoint;
 var color = pv.color;
-var DeclarativeController = dec_con.DeclarativeController;
+var DeclarativeController = controller.DeclarativeController;
 
 function update_view_display( ){
   var view_template = _.template( $("#panel-views-template").html() );
@@ -49,7 +45,7 @@ function load(pdb_id) {
     structure = io.pdb(data);
     controller.set_model( structure );
 
-    $("#panel-object")[0].innerHTML = "<pre><code>" + JSON.stringify(docmodel.docToObj( controller.model_doc ), null, 2) + "<code></pre>";
+    $("#panel-object")[0].innerHTML = "<pre><code>" + JSON.stringify(pv.mol.docmodel.docToObj( controller.model_doc ), null, 2) + "<code></pre>";
   }});
 }
 
