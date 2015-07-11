@@ -259,7 +259,8 @@ function objToMol( obj ) {
     _.extend(chain, 
       _.omit(chain_obj,
               ModelSchema.prototype.core_properties.chain,
-              ModelSchema.prototype.extended_properties.chain ));
+              ModelSchema.prototype.extended_properties.chain,
+              "residue"));
 
     for (var ri = 0; ri < chain_obj.residue.length; ri++) {
       var res_obj = chain_obj.residue[ri];
@@ -268,7 +269,8 @@ function objToMol( obj ) {
       _.extend(residue,
         _.omit(res_obj,
                 ModelSchema.prototype.core_properties.residue,
-                ModelSchema.prototype.extended_properties.residue ));
+                ModelSchema.prototype.extended_properties.residue,
+                "atom"));
 
       for (var ai = 0; ai < res_obj.atom.length; ai++) {
         var atom_obj = res_obj.atom[ai];
@@ -284,6 +286,7 @@ function objToMol( obj ) {
     }
   }
 
+  structure.deriveConnectivity();
   return structure;
 }
 
