@@ -1,9 +1,7 @@
-
 requirejs.config({
-  // uncomment the following commented-out block to test the contatenated, 
-  // minified PV version. Grunt needs to be run before for this to work.
+  'baseUrl' : 'src' ,
   paths : {
-    pv : '/js/bio-pv.min',
+    //pv : '/js/bio-pv.min',
     controller: '/controller'
   }
 });
@@ -84,7 +82,7 @@ $('#hemilight').click(hemilight);
 
 // View panel form handlers.
 var color_options_template = _.template( $("#color_options_template").html() );
-$("#color_options")[0].innerHTML = color_options_template( { color_options : _.keys(DeclarativeController.prototype.color_options) });
+$("#color_options")[0].innerHTML = color_options_template( { color_options : _.keys(pv.declarativeView.colorOptions) });
 
 $("#panel-views").on("click", ".button.add", function() {
   var form = $("#panel-views form");

@@ -25,14 +25,9 @@ DeclarativeController.prototype = {
     return this;
   },
 
-  validate_view : function(view_spec) {
-    return;
-  },
 
   add_view : function(view_spec) {
-    this.validate_view(view_spec);
     this.views.push( view_spec );
-
     this.setup_views();
 
     return this;
@@ -52,47 +47,23 @@ DeclarativeController.prototype = {
 
     if(! this.model ) { return; }
 
-    for(v = 0; v < this.views.length; v++) {
-      var color_options = this.color_options;
-
+    for(var v = 0; v < this.views.length; v++) {
       var view_spec = this.views[v];
 
-      var model_view = this.model_doc.selectView(view_spec.selection);
+      try {
+        var model_view = this.model_doc.selectView(view_spec.selection);
 
-      this.viewer.renderAs(
-          "model." + view_spec.mode,
-          model_view,
-          view_spec.mode,
-          this.build_view_options( view_spec ));
+        var view_name = v.toString()
+
+        pv.declarativeView.renderView(
+          this.viewer, v.toString(), model_view, view_spec);
+      }
+      catch(err) {
+        console.log("Error rendering view: ", view_spec, err); 
+      }
     }
     
     this.viewer.autoZoom();
-  },
-
-  color_options : {
-    "by_chain" : color.byChain,
-    "by_element" : color.byElement,
-    "by_ss" : color.bySS,
-    "rainbow" : color.rainbow,
-    "chainbow" : color.ssSuccession
-  },
-
-  build_view_options : function( view_spec ) {
-    var options = {};
-
-    if (_.has(view_spec, "color")) {
-      if (_.has(this.color_options, view_spec.color)) {
-        options["color"] = this.color_options[view_spec.color]();
-      }
-      else if( _.isString(view_spec.color)) {
-        options["color"] = color.uniform(view_spec.color);
-      }
-      else {
-        throw { name : "InvalidView", message : "Invalid view property: 'color'", view_spec : view_spec }
-      }
-    }
-
-    return options;
   },
 }
 

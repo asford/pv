@@ -120,9 +120,12 @@ exports.forceRGB = function(color) {
     if (lookup !== undefined) {
       return lookup;
     }
+
     if (color.length > 0 && color[0] === '#') {
      return exports.hex2rgb(color);
     }
+
+    throw new Error("Unable to parse color specification: " + color);
   }
   // in case no alpha component is provided, default alpha to 1.0
   if (color.length === 3) {
@@ -222,7 +225,7 @@ ColorOp.prototype = {
 exports.ColorOp = ColorOp;
 
 exports.uniform = function(color) {
-  color = exports.forceRGB(color || 'white');
+  color = exports.forceRGB(color);
   return new ColorOp(function(atom, out, index) {
     out[index+0] = color[0];
     out[index+1] = color[1];

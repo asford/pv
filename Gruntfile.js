@@ -1,6 +1,7 @@
 SOURCE_FILES = [
   'src/buffer-allocators.js',
   'src/color.js',
+  'src/declarative-view.js',
   'src/geom.js',
   'src/gfx/animation.js',
   'src/gfx/base-geom.js',

@@ -18,9 +18,22 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-define(
-  ['./gl-matrix', './viewer', './io', './mol/all', './color', './viewpoint'], 
-  function(glMatrix, viewer, io, mol, color, viewpoint) {
+define([
+  './gl-matrix',
+  './viewer',
+  './declarative-view',
+  './io',
+  './mol/all',
+  './color',
+  './viewpoint'], 
+function(
+  glMatrix,
+  viewer,
+  declarativeView,
+  io,
+  mol,
+  color,
+  viewpoint) {
   'use strict';
   // export 
   return {
@@ -29,6 +42,7 @@ define(
     io : io,
     color : color,
     mol : mol,
+    declarativeView : declarativeView,
     // for backward compatibility prior to version 1.4
     rgb : {
       setColorPalette : color.setColorPalette,
